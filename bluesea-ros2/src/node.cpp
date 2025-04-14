@@ -66,7 +66,7 @@ void PublishLaserScanFan(rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedP
 	}
 	laser_pub->publish(msg);
 }
-void PublishLaserScan(rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr laser_pub, HPublish pub, ArgData argdata, uint8_t counterclockwise)
+void PublishLaserScan(rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr laser_pub, HPublish pub, ArgData argdata, std::string &frame_ids, uint8_t counterclockwise)
 {
 	PubHub *hub = (PubHub *)pub;
 	sensor_msgs::msg::LaserScan msg;
@@ -81,7 +81,7 @@ void PublishLaserScan(rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr 
 	msg.scan_time = tx - ti; // nfan/(nfan-1);
 	msg.time_increment = msg.scan_time / N;
 
-	msg.header.frame_id = argdata.frame_id;
+	msg.header.frame_id = frame_ids;
 
 	double min_deg = argdata.min_angle * 180 / M_PI;
 	double max_deg = argdata.max_angle * 180 / M_PI;
@@ -266,7 +266,7 @@ struct CloutPointData
 };
 
 
-void PublishCloud(rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_pub2,HPublish pub, ArgData argdata, uint8_t counterclockwise)
+void PublishCloud(rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_pub2,HPublish pub, ArgData argdata, std::string &frame_ids, uint8_t counterclockwise)
 {
 	PubHub *hub = (PubHub *)pub;
 	sensor_msgs::msg::PointCloud2 msg;
@@ -274,7 +274,7 @@ void PublishCloud(rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cl
 	msg.header.stamp.sec = hub->ts_beg[0];
 	msg.header.stamp.nanosec = hub->ts_beg[1];
 
-	msg.header.frame_id = argdata.frame_id;
+	msg.header.frame_id = frame_ids;
 
 	double min_deg = argdata.min_angle * 180 / M_PI;
 	double max_deg = argdata.max_angle * 180 / M_PI;
@@ -525,6 +525,7 @@ bool ProfileInit(std::shared_ptr<rclcpp::Node> node, ArgData &argdata)
 
 			READ_PARAM(std::string, "scan_topic", arg.scan_topics, std::string("scan"));
 			READ_PARAM(std::string, "cloud_topic", arg.cloud_topics, std::string("cloud"));
+			arg.frame_ids = argdata.frame_id;
 		}
 		else
 		{
@@ -546,6 +547,10 @@ bool ProfileInit(std::shared_ptr<rclcpp::Node> node, ArgData &argdata)
 				sprintf(s, "cloud_topic%d", i);
 				sprintf(t, "cloud%d", i);
 				READ_PARAM(std::string, s, arg.cloud_topics, std::string(t));
+
+				sprintf(s, "frame_id%d", i);
+				sprintf(t, "LH_laser%d", i);
+				READ_PARAM(std::string, s, arg.frame_ids, std::string(t));
 			}
 		}
 		argdata.connectargs.push_back(arg);
@@ -695,7 +700,7 @@ int main(int argc, char *argv[])
 				{
 					if (argdata.output_scan)
 					{
-						PublishLaserScanFan(laser_pubs[i], fans[0], argdata.frame_id,
+						PublishLaserScanFan(laser_pubs[i], fans[0], argdata.connectargs[i].frame_ids,
 											argdata.min_dist, argdata.max_dist, argdata.inverted, argdata.reversed);
 					}
 					delete fans[0];
@@ -712,11 +717,11 @@ int main(int argc, char *argv[])
 					idle = false;
 					if (argdata.output_scan)
 					{
-						PublishLaserScan(laser_pubs[i], hub, argdata, counterclockwise);
+						PublishLaserScan(laser_pubs[i], hub, argdata, argdata.connectargs[i].frame_ids, counterclockwise);
 					}
 					if (argdata.output_cloud2)
 					{
-						PublishCloud(cloud_pubs2[i], hub, argdata, counterclockwise);
+						PublishCloud(cloud_pubs2[i], hub, argdata, argdata.connectargs[i].frame_ids, counterclockwise);
 					}
 				}
 				hub->consume.clear();
