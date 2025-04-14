@@ -383,7 +383,7 @@ struct ConnectArg
 {
 	std::string scan_topics;
 	std::string cloud_topics;
-	std::string frame_id;
+	std::string frame_ids;
 	std::string arg1;
 	int arg2;
 };
